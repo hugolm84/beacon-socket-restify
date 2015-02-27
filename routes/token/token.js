@@ -1,23 +1,37 @@
-var jwt_secret = require('./../../modules/jwt')
+var passport = require('./../../modules/passport').passport()
+    , jwt_secret = require('./../../modules/jwt')
     , jwt = require('jsonwebtoken')
 
 module.exports = {
   '/token': {
     post: function(req, res, cb) {
 
-      var username = req.headers.username;
-      var password = req.headers.password;
+      // Using headers username and password
+      req.body = {}
+      req.body.username = req.headers.username;
+      req.body.password = req.headers.password;
 
-      var profile = {
-        username: username,
-        email: username+'@doe.com',
-        id: 123,
-        api_key: 12345678
-      };
-
-      var token = jwt.sign(profile, jwt_secret, {expiresInMinutes: 60});
-      res.json({"token" : token});
-      return cb();
-    }
+      passport.authenticate('local', function(err, user, info) {
+        if (err) { 
+          res.json({code : 400, msg: "Failed to authenticate", err: err});
+          return cb(err);
+        }
+        
+        if (!user) { 
+          res.json({code : 401, msg: "Failed to authenticate user"});
+          return cb(); 
+        }
+        
+        req.logIn(user, function(err) {
+          if (err) { 
+            res.json({code : 401, msg: "Failed to login", err: err});
+            return cb(); 
+          }
+          var token = jwt.sign({username: user.username}, jwt_secret, {expiresInMinutes: 60});
+          res.json({code: 200, "token" : token});
+          return cb();  
+        });
+      })(req, res, cb);
   }
+}
 };
