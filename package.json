@@ -17,7 +17,7 @@
     "socketio-jwt": "latest",
     "socketio-auth" : "latest",
     "underscore": "~1.5.2",
-    "mongodb" : "latest",
+    "mongodb" : "1.4.31",
     "mongoose" : "latest",
     "passport" : "latest",
     "passport-local" : "latest",

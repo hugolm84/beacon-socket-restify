@@ -1,5 +1,5 @@
-var passport = require('./../../modules/passport').passport()
-    , jwt_secret = require('./../../modules/jwt')
+var passport = require.main.require('./modules/passport').passport()
+    , jwt_secret = require.main.require('./modules/jwt_secret')
     , jwt = require('jsonwebtoken')
 
 module.exports = {

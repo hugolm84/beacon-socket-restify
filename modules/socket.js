@@ -2,7 +2,7 @@ var socketio = require('socket.io')
     , uuid = require('node-uuid')
     , fs = require('fs')
     , socketioJwt = require('socketio-jwt')
-    , jwt_secret = require('./jwt')
+    , jwt_secret = require.main.require('./modules/jwt_secret')
 
 module.exports = {
     io: function(server) {

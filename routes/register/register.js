@@ -1,5 +1,5 @@
 var passport = require('passport')
-	Account = require('./../../models/account')
+	Account = require.main.require('./models/account')
 
 module.exports = {
   '/register': {

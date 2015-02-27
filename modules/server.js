@@ -1,7 +1,7 @@
 // Package includes
 var restify = require('restify')
     , jwt = require('restify-jwt')
-    , jwt_secret = require('./jwt')
+    , jwt_secret = require.main.require('./modules/jwt_secret')
     , passport = require('passport')
 
 module.exports = {

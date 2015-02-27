@@ -5,7 +5,7 @@ var LocalStrategy = require('passport-local').Strategy;
 module.exports = {
 	passport: function() {
 		// passport config
-		var Account = require('./../models/account');
+		var Account = require.main.require('./models/account');
 		passport.use(new LocalStrategy(Account.authenticate()));
 		passport.serializeUser(Account.serializeUser());
 		passport.deserializeUser(Account.deserializeUser());
