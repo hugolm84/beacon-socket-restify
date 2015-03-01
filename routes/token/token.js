@@ -27,7 +27,7 @@ module.exports = {
             res.json({code : 401, msg: "Failed to login", err: err});
             return cb(); 
           }
-          var token = jwt.sign({username: user.username}, jwt_secret, {expiresInMinutes: 60});
+          var token = jwt.sign({username: user.username}, jwt_secret, {expiresInMinutes: 600});
           res.json({code: 200, "token" : token});
           return cb();  
         });
