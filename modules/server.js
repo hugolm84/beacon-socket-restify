@@ -7,8 +7,8 @@ var restify = require('restify')
 module.exports = {
     server: function() {
         var server = restify.createServer();
-        // ALL routes requires BEARER Token, except /token
-        server.use(jwt({ secret: jwt_secret}).unless({path: ['/token']}));
+        // ALL routes requires BEARER Token, except /token and /register
+        //server.use(jwt({ secret: jwt_secret}).unless({path: ['/token', '/register'] }));
         server.use(passport.initialize());
         server.use(restify.dateParser());
         server.use(restify.queryParser());

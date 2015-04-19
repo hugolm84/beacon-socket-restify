@@ -1,247 +1,202 @@
 <!doctype html>
 <html>
   <head>
-    <title>Socket.IO chat</title>
+    <title>ÅF Presence</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body { font: 13px Helvetica, Arial; }
       form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
       form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
       form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
-      #messages { list-style-type: none; margin: 0; padding: 0; }
-      #messages li { padding: 5px 10px; }
-      #messages li:nth-child(odd) { background: #eee; }
     </style>
   </head>
   <body>
-    
-<div id="canvasesdiv" style="position:relative; width:1000px; height:1000x">
-  <canvas id="layer1" style="z-index: 1; position:absolute; left:0px; top:0px;" height="1000" width="1000"></canvas>
-  <canvas id="layer2" style="z-index: 2; position:absolute; left:0px; top:0px;" height="1000" width="1000"></canvas>
-  <canvas id="layer3" style="z-index: 2; position:absolute; left:0px; top:0px;" height="1000" width="1000"></canvas>
-  <!-- <canvas id="layer3" style="z-index: 3; position:absolute; left:0px; top:0px;" height="300px" width="400"></canvas>-->
-</div>
-
-<ul id="messages"></ul>
-    <form action="">
-      <input id="m" autocomplete="off" /><button>Send</button>
-    </form>
+  
+  <div id="canvasesdiv" style="position:relative; width:100%; height:550px">
+    <canvas id="layer1"></canvas>
+  </div>
+  
+  <form action="">
+    <input id="m" autocomplete="off" /><button>Send</button>
+  </form>
+  
     <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
     <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sylvester/0.1.3/sylvester.min.js"></script>
-    
     <script>
-
-    var kfilter = {
-
-    }
-
-// Settings //////////////////////////////////////
-
-// The decay errodes the assumption that velocity 
-// never changes.  This is the only unique addition
-// I made to the proceedure.  If you set it to zero, 
-// the filter will act just like the one we designed
-// in class which means it strives to find a consitent
-// velocitiy.  Over time this will cause it to assume
-// the mouse is moving very slowly with lots of noise.
-// Set too high and the predicted fit will mirror the 
-// noisy data it recieves.  When at a nice setting, 
-// the fit will be resposive and will do a nice job
-// of smoothing out the function noise.
-
-var decay = 0.003;
-
-// I use the uncertainty matrix, R to add random noise
-// to the known position of the mouse.  The higher the
-// values, the more noise, which can be seen by the 
-// spread of the orange points on the canvas.
-//
-// If you adjust this number you will often need to 
-// compensate by changing the decay so that the prediction
-// function remains smooth and reasonable.  However, as
-// these measurements get noisier we are left with a 
-// choice between slower tracking (due to uncertainty)
-// and unrealistic tracking because the data is too noisy.
-
-var R = Matrix.Diagonal([0.02, 0.02]);
-// initial state (location and velocity)
-// I haven't found much reason to play with these
-// in general the model will update pretty quickly 
-// to any entry point.
-
-var x = $M([
-    [0], 
-    [0], 
-    [0], 
-    [0] 
-]);
-
-// external motion
-// I have not played with this at all, just
-// added like a udacity zombie.
-
-var u = $M([
-    [0], 
-    [0], 
-    [0], 
-    [0]
-]);
-        
-// initial uncertainty 
-// I don't see any reason to play with this
-// like the entry point it quickly adjusts 
-// itself to the behavior of the mouse
-var P = Matrix.Random(4, 4);
-
-// measurement function (4D -> 2D)
-// This one has to be this way to make things run
-var H = $M([
-    [1, 0, 0, 0], 
-    [0, 1, 0, 0]
-]); 
-
-// identity matrix
-var I = Matrix.I(4);
-
-// To determine dt
-var time = $.now();
-
-
-// Event Loop //////////////////////////////////////
-
-function filter(position){
-
-    // change in time
-    now = $.now();
-    dt = now - time;
-    time = now;
-
-    // Derive the next state
-    F = $M([[1, 0, dt, 0], 
-            [0, 1, 0, dt], 
-            [0, 0, 1, 0], 
-            [0, 0, 0, 1]
-           ]); 
-   
-    // decay confidence
-    // to account for change in velocity
-    P = P.map(function(x) {
-        return x * (1 + decay * dt);
-    });
+    // Values/Coordninates for visualization
+    // 0------> x
+    // |   r 50 (rInc)
+    // |   r 50
+    // |  b1  <-- 400 ( xInc ) -->  b2  <-- 400 (  xInc ) -->    b3 
+    // |   
+    // y 
+    var xStart = 300;
+    var yStart = 300;
+    var dStart = 100;
+    var xInc   = 400;
+    var rInc   = 50;
     
-    // Fake uncertaintity in our measurements
-    xMeasure = position.x;// + 500 * R.e(1,1) * 2 * (Math.random() - 0.5);
-    yMeasure = position.y;// + 500 * R.e(2,2) * 2 * (Math.random() - 0.5);
-    
-    // prediction
-    x = F.x(x).add(u);
-    P = F.x(P).x(F.transpose());
+    // Keep ref to all connect clients so that we can move them around
+    var clients = [
 
-    // measurement update
-    Z = $M([[xMeasure, yMeasure]]);
-    y = Z.transpose().subtract(H.x(x));
-    S = H.x(P).x(H.transpose()).add(R);
+    ]
 
-    K = P.x(H.transpose()).x(S.inverse());
-    x = x.add(K.x(y));
-    P = I.subtract(K.x(H)).x(P);
-    
-    // Draw our predicted point
-    var pSize = P.max() * 2000;
-    var pAlpha = 1 / pSize;
-    var canvas = document.getElementById('layer2');
-    var ctx = canvas.getContext('2d');
-    ctx.fillStyle = "rgba(0,0,255," +  pAlpha + ")";
-    ctx.fillRect(x.e(1, 1),x.e(2, 1), pSize, pSize); // x, y, width, height
-    
-    // Draw our measured points
-    var mSize = 5;
-    var mAlpha = 1 / (mSize*2);
-    ctx.fillStyle = "rgba(255,165,0," + mAlpha + ")";
-    ctx.fillRect(xMeasure, yMeasure, mSize, mSize);   // x, y, width, height
+    // Beacons placed on a canvas for visulization purposes. The X,Y coordinates are irrelevant without a canvas.
+    var beacons = [
+      {label: "45", x: 300, y: yStart, color: "#2069ac", active: true, distance: 100, clients : []},
+      {label: "7C", x: 700, y: yStart, color: "#358913", active: true, distance: 100, clients : []},
+      {label: "4A", x: 1100, y: yStart, color: "#b10292", active: true, distance: 100, clients : []}
+    ]
 
-    var canvas2 = document.getElementById('layer3');
-    var ctx2 = canvas2.getContext('2d');
+    // This is the clients position
+    var position = {x: 0, y: 0, beacon: "", color: "rgba(0, 255, 73, 0.6)"};
 
-    var bw = ctx2.canvas.width = window.innerWidth;
-    var bh = ctx2.canvas.height = window.innerHeight;
-    ctx2.clearRect(0, 0, bw, bh)
-
-    drawPoint(ctx2, xMeasure, yMeasure, pSize/2, "P", "#b10292");
-    drawPoint(ctx2, x.e(1, 1),x.e(2, 1), 10, "M", "#2069ac");
-
-    return {x: xMeasure, y: yMeasure}
-};
-    
-    var position = {x: 135, y: 190, color: "rgba(255,0,0,0.5)"};
-    
     function canvas() {
       return document.getElementById('layer1');
     }
 
-      var coordW = 14;
-      var coordH = 22;
-      
-    beacon_idx = {
-      '00:02:5B:00:42:45' : 0,
-      '00:02:5B:00:3A:7C' : 1,
-      '00:02:5B:00:42:4A' : 2
+    // Generates a random XY coordinate on a given radius within the origin of cx, cy 
+    function randomXYOnRadius(cx, cy, radius) {
+      var angle = Math.random()*Math.PI*2;
+      var y = Math.round( cy + radius * Math.sin( angle ));
+      var x = Math.round( cx + radius * Math.cos( angle ));
+      return {x: x, y: y};
     }
 
-      
-      var beacons = [
-          {label: "45", x: 100, y: 500, color: "#2069ac", active: true},
-          {label: "7C", x: 300, y: 100, color: "#358913", active: true},
-          {label: "4A", x: 400, y: 400, color: "#b10292", active: true}
-      ]
+    function getByLabel(array, label) {
+      return array.filter(function (b) {
+        return b.label == label;
+      })[0];
+    }
 
-      function activeBeacons() {
-          return beacons.filter(function (beacon) {
-              return beacon.active;
-          });
+    function getBeaconByLabel(label) {
+      return getByLabel(beacons, label);
+    }
+
+    function getClientByUUID(uuid) {
+      return getByLabel(clients, uuid);
+    }
+
+    // Filter out a beacon by its id, push to its clients
+    function addClientToBeacon(beacon, client) {
+      var beacon = getBeaconByLabel(beacon);
+      beacon.clients.push(client);
+    }
+
+  // Filter out a beacon by its id, push to its clients
+    function removeClientFromBeacon(client) {
+      var beacon = getBeaconByLabel(client.beacon);
+      beacon.clients =  beacon.clients.filter(function (el) {
+                        return el.label !== client.label;
+                       });
+    }
+
+    function activeBeacons() {
+      return beacons.filter(function (beacon) {
+        return beacon.active;
+      });
+    }
+
+    Array.prototype.remove = function() {
+      var what, a = arguments, L = a.length, ax;
+      while (L && this.length) {
+          what = a[--L];
+          while ((ax = this.indexOf(what)) !== -1) {
+              this.splice(ax, 1);
+          }
       }
-      
+      return this;
+    };
+
+    function getRandomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+    
     function draw() {
 
-          var ctx = canvas().getContext('2d');
-          var bw = ctx.canvas.width = window.innerWidth;
-          var bh = ctx.canvas.height = window.innerHeight;
-          var margin = 10;
+      var ctx = canvas().getContext('2d');
+      var bw = ctx.canvas.width = window.innerWidth;
+      var bh = ctx.canvas.height = window.innerHeight;
+      var margin = 10;
 
-          ctx.clearRect(0, 0, bw, bh)
+      ctx.clearRect(0, 0, bw, bh)
 
-          var rx = (bw/coordW)-margin;
-          var ry = (bh/coordH)-margin;
-
-          var gridSize = 20;
-          var p = 10;
-          var cw = bw*rx;
-          var ch = bh*rx;
-
-          for (var x = 0; x <= cw; x += gridSize) {
-              ctx.moveTo(0.5 + x + margin, margin);
-              ctx.lineTo(0.5 + x + margin, ch + margin);
-          }
-
-
-          for (var x = 0; x <= ch; x += gridSize) {
-              ctx.moveTo(margin, 0.5 + x + margin);
-              ctx.lineTo(cw + margin, 0.5 + x + margin);
-          }
-
-          ctx.strokeStyle = "black";
-          ctx.stroke();
-
-       
-          activeBeacons().forEach(function (beacon) {
-              drawPoint(ctx, beacon.x, beacon.y, 30, beacon.label + "-" + beacon.x + ":" + beacon.y, beacon.color);
-              drawCircle(ctx, beacon.x, beacon.y, beacon.distance, beacon.color);
-          });
-
-          drawPoint(ctx, position.x, position.y, 20, "X", position.color);
+      activeBeacons().forEach(function (beacon) {
+          drawPoint(ctx, beacon.x, beacon.y, 30, beacon.label, beacon.color);
           
-        }
+          for(var i = 0; i < 3; i++) {
+            var rad = beacon.distance+(i*rInc);
+            drawCircle(ctx, beacon.x, beacon.y, rad, beacon.color);
+            drawPoint(ctx, beacon.x, beacon.y+rad, 10, i+"m", beacon.color);
+          }
+          
+          beacon.clients.forEach(function(client) {
+            drawPoint(ctx, client.x, client.y, 20, client.label, client.color);    
+          });
+      });
+
+      drawGradientRect(ctx, 100, 520, 1200,100);
+
+    }
+
+    function getColorForGradient(size) {
+      var minMax = getMinMax();
+      if(size == minMax.min)
+        return "#2EFE2E";
+      if(size == minMax.max)
+        return "#FF0000";
+      return "#FFBF00";
+    }
+
+      function generateRandomClient() {
+        var randomX = xStart+(getRandomInt(0,2)*xInc);
+        var randomR = 100+(getRandomInt(0,2)*rInc);
+        var randomXY = randomXYOnRadius(randomX, 300, randomR);
+        var label = "45";
+        if(randomX > 300 && randomX < 1100)
+          label = "7C";
+        if(randomX > 700)
+          label = "4A";
+        return {label : "R", beacon: label, x: randomXY.x, y: randomXY.y, size: 20, color: "rgba(255,0,0,0.5)"};
+      }
+
+      function addRandomClients() {
+        var randomClients = getRandomInt(1, 12);
+          for(var i = 0; i < randomClients; i++) {
+            var client = generateRandomClient();
+            addClientToBeacon(client.beacon, client);
+          }
+      }
+
+      function getMinMax() {
+        var sizes = [ beacons[0].clients.length, 
+                      beacons[1].clients.length, 
+                      beacons[2].clients.length 
+                    ]
+        var min = Math.min.apply(null, sizes),
+            max = Math.max.apply(null, sizes);
+        return { min: min, max: max}
+      }
+
+      // x = 100, y = 520, w = 1200, h = 100
+      function drawGradientRect(ctx, x, y, w, h) {
+        var grd=ctx.createLinearGradient(x, y, w, h*2);
+        grd.addColorStop(0,  getColorForGradient(beacons[0].clients.length));
+        grd.addColorStop(0.5,getColorForGradient(beacons[1].clients.length));
+        grd.addColorStop(1,  getColorForGradient(beacons[2].clients.length));
+
+        ctx.fillStyle=grd;
+        ctx.fillRect(x,y,w,h);
+        ctx.strokeRect(x,y,w,h);
+      }
+
+      function drawTriangle(ctx) {
+        ctx.beginPath();
+        ctx.moveTo(75,50);
+        ctx.lineTo(100,75);
+        ctx.lineTo(100,25);
+        ctx.fill();
+      }
 
       function drawCircle(ctx, x, y, radius, color) {
           var maXRadius = 2000; //browser may throw errors for big radius
@@ -261,8 +216,8 @@ function filter(position){
           ctx.fillStyle = color;
           ctx.fillRect(x, y, size, size);
       }
+      
       function drawPoint(ctx, x, y, r, label, color) {
-          console.log("Drawing p:" + x + ","+y + " label ");
           ctx.beginPath();
           ctx.arc(x, y, r, 0, 2 * Math.PI, false);
           ctx.closePath();
@@ -273,8 +228,6 @@ function filter(position){
           var metrics = ctx.measureText(label);
           ctx.fillText(label, x - metrics.width / 2, y + 12 / 1.25 / 2);
       }
-
-      draw();
     </script>  
    <script>
 
@@ -283,43 +236,54 @@ function filter(position){
       var clientUuid = null;
       
       $('form').submit(function(){
-        socket.emit('message', $('#m').val(), clientUuid);
+        socket.emit('message', $('#m').val());
         $('#m').val('');
         return false;
       });
+
+      socket.on('message', function(msg){
+        console.log("Msg", msg);
+        var client = generateRandomClient();
+        client.label = "X";
+        client.color = "#FF00FF";
+        addClientToBeacon(client.beacon, client);
+        draw();
+      });
+
+      socket.on('position', function(id, distance, uuid){
+        var dist = 100+(Math.round(distance)*rInc);
+        var beacon = getBeaconByLabel(id);
+        var randomXY = randomXYOnRadius(beacon.x, 300, dist);
+        var client = getClientByUUID(uuid);
+        if(client == null) {
+          var client = {label : uuid, beacon: id, x: randomXY.x, y: randomXY.y, size: 20, color: "rgb(176, 27, 27)"};
+          clients.push(client);  
+        } else {
+          removeClientFromBeacon(client);
+          client.beacon = id;
+          client.x = randomXY.x;
+          client.y = randomXY.y;
+        }
+
+        addClientToBeacon(client.beacon, client);
+        draw();
+
+      });
       
-      socket.on('connected',  function(uuid, username) {
+      socket.on('connected',  function(uuid){
         clientUuid = uuid;
         console.log("Connected as " + uuid);
-        $('#messages').append($('<li>').text(username + " joined as " + uuid));
+        addRandomClients();
+        draw();
       });  
       
-      socket.on('message', function(msg, uuid){
-        $('#messages').append($('<li>').text(uuid + ": " + msg));
-        draw();
-
-      });
-
-      socket.on('position', function(msg){
-        filtered = filter(position);
-        
-        position.x = (msg.x*100)+10;
-        position.y = (msg.y*100)+10;
-        //position.x = filtered.x;
-        //position.y = filtered.y;
-        for(var pos in msg.data) {
-          beacons[beacon_idx[pos]].distance = parseFloat(msg.data[pos]*100)+10;
-        }
-        draw();
-        //$('#messages').append($('<li>').text(JSON.stringify(msg)));
-      });
-
       socket.on("error", function(error) {
         if (error.type == "UnauthorizedError" || error.code == "invalid_token") {
           // redirect user to login page perhaps?
           console.log("User's token has expired");
         }
       });
+
     </script>
   </body>
 </html>
