@@ -1,6 +1,7 @@
 <!doctype html>
 <html>
   <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <title>ÅF Presence</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -35,199 +36,175 @@
     var dStart = 100;
     var xInc   = 400;
     var rInc   = 50;
+
+    var clients = {}
     
-    // Keep ref to all connect clients so that we can move them around
-    var clients = [
-
-    ]
-
     // Beacons placed on a canvas for visulization purposes. The X,Y coordinates are irrelevant without a canvas.
     var beacons = [
-      {label: "45", x: 300, y: yStart, color: "#2069ac", active: true, distance: 100, clients : []},
-      {label: "7C", x: 700, y: yStart, color: "#358913", active: true, distance: 100, clients : []},
-      {label: "4A", x: 1100, y: yStart, color: "#b10292", active: true, distance: 100, clients : []}
+        {label: "45", x: 300, y: yStart, color: "#2069ac", active: true, distance: 100, clients : {}},
+        {label: "7C", x: 700, y: yStart, color: "#358913", active: true, distance: 100, clients : {}},
+        {label: "4A", x: 1100, y: yStart, color: "#b10292", active: true, distance: 100, clients : {}}
     ]
 
-    // This is the clients position
-    var position = {x: 0, y: 0, beacon: "", color: "rgba(0, 255, 73, 0.6)"};
-
     function canvas() {
-      return document.getElementById('layer1');
+        return document.getElementById('layer1');
     }
 
     // Generates a random XY coordinate on a given radius within the origin of cx, cy 
     function randomXYOnRadius(cx, cy, radius) {
-      var angle = Math.random()*Math.PI*2;
-      var y = Math.round( cy + radius * Math.sin( angle ));
-      var x = Math.round( cx + radius * Math.cos( angle ));
-      return {x: x, y: y};
+        var angle = Math.random()*Math.PI*2;
+        var y = Math.round( cy + radius * Math.sin( angle ));
+        var x = Math.round( cx + radius * Math.cos( angle ));
+        return {x: x, y: y};
     }
 
     function getByLabel(array, label) {
-      return array.filter(function (b) {
-        return b.label == label;
-      })[0];
+        return array.filter(function (b) {
+          return b.label == label;
+        })[0];
     }
 
     function getBeaconByLabel(label) {
-      return getByLabel(beacons, label);
+        return getByLabel(beacons, label);
     }
 
     function getClientByUUID(uuid) {
-      return getByLabel(clients, uuid);
-    }
-
-    // Filter out a beacon by its id, push to its clients
-    function addClientToBeacon(beacon, client) {
-      var beacon = getBeaconByLabel(beacon);
-      beacon.clients.push(client);
-    }
-
-  // Filter out a beacon by its id, push to its clients
-    function removeClientFromBeacon(client) {
-      var beacon = getBeaconByLabel(client.beacon);
-      beacon.clients =  beacon.clients.filter(function (el) {
-                        return el.label !== client.label;
-                       });
+        return getByLabel(clients, uuid);
     }
 
     function activeBeacons() {
-      return beacons.filter(function (beacon) {
-        return beacon.active;
-      });
+        return beacons.filter(function (beacon) {
+          return beacon.active;
+        });
     }
-
-    Array.prototype.remove = function() {
-      var what, a = arguments, L = a.length, ax;
-      while (L && this.length) {
-          what = a[--L];
-          while ((ax = this.indexOf(what)) !== -1) {
-              this.splice(ax, 1);
-          }
-      }
-      return this;
-    };
 
     function getRandomInt(min, max) {
       return Math.floor(Math.random() * (max - min + 1)) + min;
     }
     
     function draw() {
+        var ctx = canvas().getContext('2d');
+        var bw = ctx.canvas.width = window.innerWidth;
+        var bh = ctx.canvas.height = window.innerHeight;
+        var margin = 10;
 
-      var ctx = canvas().getContext('2d');
-      var bw = ctx.canvas.width = window.innerWidth;
-      var bh = ctx.canvas.height = window.innerHeight;
-      var margin = 10;
+        ctx.clearRect(0, 0, bw, bh)
 
-      ctx.clearRect(0, 0, bw, bh)
+        activeBeacons().forEach(function (beacon) {
+            drawPoint(ctx, beacon.x, beacon.y, 30, beacon.label, beacon.color);
+            
+            for(var i = 0; i < 3; i++) {
+              var rad = beacon.distance+(i*rInc);
+              drawCircle(ctx, beacon.x, beacon.y, rad, beacon.color);
+              drawPoint(ctx, beacon.x, beacon.y+rad, 10, i+"m", beacon.color);
+            }
+            
+            for(var key in beacon.clients) {
+              var client = beacon.clients[key];
+              drawPoint(ctx, client.draw.x, client.draw.y, client.draw.size, client.uuid, client.draw.color);    
+            }
+        });
 
-      activeBeacons().forEach(function (beacon) {
-          drawPoint(ctx, beacon.x, beacon.y, 30, beacon.label, beacon.color);
-          
-          for(var i = 0; i < 3; i++) {
-            var rad = beacon.distance+(i*rInc);
-            drawCircle(ctx, beacon.x, beacon.y, rad, beacon.color);
-            drawPoint(ctx, beacon.x, beacon.y+rad, 10, i+"m", beacon.color);
-          }
-          
-          beacon.clients.forEach(function(client) {
-            drawPoint(ctx, client.x, client.y, 20, client.label, client.color);    
-          });
-      });
-
-      drawGradientRect(ctx, 100, 520, 1200,100);
-
+        drawGradientRect(ctx, 100, 520, 1200,100);
     }
 
     function getColorForGradient(size) {
-      var minMax = getMinMax();
-      if(size == minMax.min)
-        return "#2EFE2E";
-      if(size == minMax.max)
-        return "#FF0000";
-      return "#FFBF00";
+        var minMax = getMinMax();
+        if(size == minMax.min)
+          return "#2EFE2E";
+        if(size == minMax.max)
+          return "#FF0000";
+        return "#FFBF00";
     }
 
-      function generateRandomClient() {
-        var randomX = xStart+(getRandomInt(0,2)*xInc);
-        var randomR = 100+(getRandomInt(0,2)*rInc);
-        var randomXY = randomXYOnRadius(randomX, 300, randomR);
-        var label = "45";
-        if(randomX > 300 && randomX < 1100)
-          label = "7C";
-        if(randomX > 700)
-          label = "4A";
-        return {label : "R", beacon: label, x: randomXY.x, y: randomXY.y, size: 20, color: "rgba(255,0,0,0.5)"};
-      }
-
-      function addRandomClients() {
-        var randomClients = getRandomInt(1, 12);
-          for(var i = 0; i < randomClients; i++) {
-            var client = generateRandomClient();
-            addClientToBeacon(client.beacon, client);
-          }
-      }
-
-      function getMinMax() {
-        var sizes = [ beacons[0].clients.length, 
-                      beacons[1].clients.length, 
-                      beacons[2].clients.length 
+    function getMinMax() {
+        var sizes = [ Object.keys(beacons[0].clients).length, 
+                      Object.keys(beacons[1].clients).length, 
+                      Object.keys(beacons[2].clients).length 
                     ]
         var min = Math.min.apply(null, sizes),
-            max = Math.max.apply(null, sizes);
+          max = Math.max.apply(null, sizes);
         return { min: min, max: max}
-      }
+    }
 
-      // x = 100, y = 520, w = 1200, h = 100
-      function drawGradientRect(ctx, x, y, w, h) {
+    // x = 100, y = 520, w = 1200, h = 100
+    function drawGradientRect(ctx, x, y, w, h) {
         var grd=ctx.createLinearGradient(x, y, w, h*2);
-        grd.addColorStop(0,  getColorForGradient(beacons[0].clients.length));
-        grd.addColorStop(0.5,getColorForGradient(beacons[1].clients.length));
-        grd.addColorStop(1,  getColorForGradient(beacons[2].clients.length));
+
+        grd.addColorStop(0,  getColorForGradient(Object.keys(beacons[0].clients).length));
+        grd.addColorStop(0.5,getColorForGradient(Object.keys(beacons[1].clients).length));
+        grd.addColorStop(1,  getColorForGradient(Object.keys(beacons[2].clients).length));
 
         ctx.fillStyle=grd;
         ctx.fillRect(x,y,w,h);
         ctx.strokeRect(x,y,w,h);
-      }
+    }
 
-      function drawTriangle(ctx) {
+    function drawTriangle(ctx) {
         ctx.beginPath();
         ctx.moveTo(75,50);
         ctx.lineTo(100,75);
         ctx.lineTo(100,25);
         ctx.fill();
-      }
+    }
 
-      function drawCircle(ctx, x, y, radius, color) {
-          var maXRadius = 2000; //browser may throw errors for big radius
-          if (radius > maXRadius) {
-              return;
-          }
-          ctx.lineWidth = 1;
-          ctx.strokeStyle = color;
-          ctx.setLineDash([2, 3]);
-          ctx.beginPath();
-          ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
-          ctx.closePath();
-          ctx.stroke();
-      }
+    function drawCircle(ctx, x, y, radius, color) {
+        var maXRadius = 2000; //browser may throw errors for big radius
+        if (radius > maXRadius) {
+            return;
+        }
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = color;
+        ctx.setLineDash([2, 3]);
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
+        ctx.closePath();
+        ctx.stroke();
+    }
 
-      function drawParticle(ctx, x, y, size, color) {
-          ctx.fillStyle = color;
-          ctx.fillRect(x, y, size, size);
-      }
-      
-      function drawPoint(ctx, x, y, r, label, color) {
-          ctx.beginPath();
-          ctx.arc(x, y, r, 0, 2 * Math.PI, false);
-          ctx.closePath();
-          ctx.fillStyle = color;
-          ctx.fill();
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "12px Arial";
-          var metrics = ctx.measureText(label);
-          ctx.fillText(label, x - metrics.width / 2, y + 12 / 1.25 / 2);
-      }
+    function drawParticle(ctx, x, y, size, color) {
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, size, size);
+    }
+
+    function drawPoint(ctx, x, y, r, label, color) {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, 2 * Math.PI, false);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "12px Arial";
+        var metrics = ctx.measureText(label);
+        ctx.fillText(label, x - metrics.width / 2, y + 12 / 1.25 / 2);
+    }
+
+    // Filter out a beacon by its id, push to its clients
+    function addClientToBeacon(client) {
+        var beacon = getBeaconByLabel(client.position.beacon);
+        beacon.clients[client.uuid] = client;
+    }
+
+    // Removes client from beacon
+    function removeClientFromBeacon(client) {
+        var beacon = getBeaconByLabel(client.position.beacon);
+        delete beacon.clients[client.uuid];
+    }
+
+    function generateClient(position, uuid) {
+      var dist = 100+(Math.round(position.distance)*rInc);
+
+      console.log("Generate client", position, dist);
+      var beacon = getBeaconByLabel(position.beacon);
+      var xy = randomXYOnRadius(beacon.x, beacon.y, dist);
+      var client = {};
+      client.draw = {x: xy.x, y: xy.y, size: 20, color: "rgb(176, 27, 27)"}
+      client.position = position;
+      client.uuid = uuid;
+      return client;
+    }
+
+
     </script>  
    <script>
 
@@ -243,37 +220,54 @@
 
       socket.on('message', function(msg){
         console.log("Msg", msg);
-        var client = generateRandomClient();
-        client.label = "X";
-        client.color = "#FF00FF";
-        addClientToBeacon(client.beacon, client);
-        draw();
       });
 
-      socket.on('position', function(id, distance, uuid){
-        var dist = 100+(Math.round(distance)*rInc);
-        var beacon = getBeaconByLabel(id);
-        var randomXY = randomXYOnRadius(beacon.x, 300, dist);
-        var client = getClientByUUID(uuid);
-        if(client == null) {
-          var client = {label : uuid, beacon: id, x: randomXY.x, y: randomXY.y, size: 20, color: "rgb(176, 27, 27)"};
-          clients.push(client);  
-        } else {
-          removeClientFromBeacon(client);
-          client.beacon = id;
-          client.x = randomXY.x;
-          client.y = randomXY.y;
-        }
+      socket.on('connections', function(connections) {
+        for(var connection in connections) {
+          if(connection.position) {
+            var uuid = connection.uuid;
+            var position = connection.position;
+            var client = clients[uuid];
 
-        addClientToBeacon(client.beacon, client);
+            if(client) {
+              removeClientFromBeacon(client);
+            }
+        
+            client = generateClient(position, uuid);
+            clients[client.uuid] = client;
+            addClientToBeacon(client);
+            draw();
+          }
+        }
+      });
+
+      socket.on('position', function(uuid, position){
+        
+        var client = clients[uuid];
+
+        if(client != null) {
+          removeClientFromBeacon(client);
+        }
+        
+        client = generateClient(position, uuid);
+        clients[client.uuid] = client;
+        addClientToBeacon(client);
+        
         draw();
 
       });
       
+      socket.on('disconnect',  function(uuid){
+        var client = clients[uuid];
+        if(client != null) {
+          removeClientFromBeacon(client);
+        }
+        draw();
+      }); 
+
       socket.on('connected',  function(uuid){
-        clientUuid = uuid;
         console.log("Connected as " + uuid);
-        addRandomClients();
+        socket.uuid = uuid;
         draw();
       });  
       
