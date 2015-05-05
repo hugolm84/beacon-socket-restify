@@ -4,7 +4,8 @@ var socketio = require('socket.io')
     , jwt_secret = require.main.require('./modules/jwt_secret')
     , Beacon = require.main.require('./models/beacon')
     , debug = require('debug')('presence:server')
-    , clientPositions = {};
+    , clientPositions = {}
+    , gpio = require.main.require('./modules/gpio')
 
 
 function disconnectOne(id) {
@@ -104,6 +105,8 @@ var self = module.exports = {
                     clientPositions[socket.id] = {beacon: id, distance: distance};
                     io.emit('position', socket.id, clientPositions[socket.id]);
                 });
+
+                gpio.setOnOrOff(0);
             });
         });
         return io;
