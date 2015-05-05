@@ -10,7 +10,7 @@ module.exports = {
 		passport.serializeUser(Account.serializeUser());
 		passport.deserializeUser(Account.deserializeUser());
 		// mongoose
-		mongoose.connect('mongodb://localhost/presence_db');
+		mongoose.connect('mongodb://10.0.1.2/presence_db');
 		return passport;
 	}
 };

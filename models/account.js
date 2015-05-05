@@ -3,8 +3,9 @@ var mongoose = require('mongoose'),
     passportLocalMongoose = require('passport-local-mongoose');
 
 var Account = new Schema({
-    username: String,
-    password: String
+    username: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    is_admin: { type: Boolean, default: false }
 });
 
 Account.plugin(passportLocalMongoose);

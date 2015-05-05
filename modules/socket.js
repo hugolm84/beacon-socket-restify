@@ -1,11 +1,33 @@
 var socketio = require('socket.io')
-    , uuid = require('node-uuid')
     , fs = require('fs')
     , socketioJwt = require('socketio-jwt')
     , jwt_secret = require.main.require('./modules/jwt_secret')
-    , debug = require('debug')('presence:server');
+    , Beacon = require.main.require('./models/beacon')
+    , debug = require('debug')('presence:server')
+    , clientPositions = {};
 
-var clientPositions = {};
+
+function disconnectOne(id) {
+    var client = clientPositions[id];
+    if(client && client.beacon) {
+        Beacon.inc(client.beacon, -1, function(err, changed, beacon) {
+            if(err){ debug("Decrement error", err); return; }
+            if(changed) debug("Performed action", beacon.state)
+            debug("disconnected", id);
+        });
+        delete clientPositions[id];
+    }
+}
+
+function sendAllConnectedDevices(io) {
+    // Send all client positions to a newly connected device
+    for(var key in clientPositions) {
+        if(clientPositions.hasOwnProperty(key)) {
+            debug("Sending", key, clientPositions[key]);
+            io.emit('position', key, clientPositions[key]);
+        }
+    }
+}
 
 var self = module.exports = {
     io: function(server) {
@@ -16,6 +38,11 @@ var self = module.exports = {
             handshake: true
         }));
 
+        // Reset all beacons if we exited in a bad way
+        Beacon.update({}, { num_attached: 0 }, { multi: true }, function (err, raw) {
+            if (err) debug(err);
+        });
+
         io.on('connection', function(socket){
 
             debug('a user connected', socket.id);
@@ -23,19 +50,13 @@ var self = module.exports = {
             // Notify all that UUID connected
             io.emit('connected', socket.id);
 
-            // Send all client positions to a newly connected device
-            for(var key in clientPositions) {
-                if(clientPositions.hasOwnProperty(key)) {
-                    debug("Sending", key, clientPositions[key]);
-                    io.emit('position', key, clientPositions[key]);
-                }
-            }
+            sendAllConnectedDevices(io);
 
             socket.on('disconnect', function(){
                 debug('user disconnected', socket.id);
                 // Make sure that disconnecting user leaves all joined rooms
+                disconnectOne(socket.id);
                 socket.leaveAll();
-                delete clientPositions[socket.id];
                 io.emit('disconnect', socket.id);
             });
 
@@ -58,6 +79,7 @@ var self = module.exports = {
                             debug("Leaving previous room resulted in error:", err);
                             return;
                         } 
+                        disconnectOne(socket.id);
                         debug("Socket ID", socket.id, "left room", socket.room);
                     });
                 }
@@ -68,8 +90,13 @@ var self = module.exports = {
                         return;
                     } 
 
+                    Beacon.inc(id, 1, function(err, changed, beacon) {
+                        if(err){ debug("Increment error", err); return; }
+                        if(changed) debug("Perform action", beacon)
+                    });                   
+
                     debug("Room", id, "now have",  Object.keys(io.sockets.adapter.rooms[id]).length, "connected devices")
-                    
+
                     // Set the new id as current room, emit to listeners that UUID's position changed to beacon ID
                     // Emitting is mostly for graphical demonstration purposes in this usecase, 
                     // but could be used to display information to all connected devices

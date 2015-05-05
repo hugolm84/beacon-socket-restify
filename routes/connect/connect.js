@@ -1,5 +1,5 @@
 module.exports = {
-  '/v1': {
+  '/connect': {
     get: function(req, res, cb) {
       res.json({});
       return cb();
