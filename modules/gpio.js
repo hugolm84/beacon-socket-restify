@@ -12,10 +12,10 @@ function writeGPIO(gpio_id, onOff) {
 			debug("Writing GPIO_ID", err);
 		}
 		else {
-			gpios[gpio_id].read(err, value) {
+			gpios[gpio_id].read(function(err, value) {
 				if(err) debug("Reading GPIO_ID", err)
 				else debug("GPIO_ID", gpio_id, "is now", (onOff === 0 ? "negative" : "positive"));
-			}
+			});
 		}
 	});
 }
