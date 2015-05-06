@@ -15,7 +15,7 @@ var Beacon = new Schema({
     uuid: { type: String, required: true, unique: true }, // UUID for beacon
     num_attached: { type: Number, default: 0 }, // Number of attached clients in this beacons proximity
     is_auto: { type: Boolean, default: false }, // Auto performs action, eg. ON if less than 10 connected
-    state: { type: String, default: null},
+    state: { type: String, default: 'negative'},
     gpio: { type: Number, default: null},
     capability :  { 
     	positive: { type: String, required: true}, // On, Open etc
@@ -42,7 +42,7 @@ Beacon.methods.doIfAuto = function(cb) {
         else if(this.num_attached >= this.do_if_more_then.number) {
             this.state = this.do_if_more_then.action;
         }
-        gpio[this.state](function() {
+        gpio[this.state](this.gpio, function() {
             debug(that.uuid, "Performed action", that.state);
         });
         this.save();
