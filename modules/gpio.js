@@ -1,18 +1,22 @@
 var Gpio = require('onoff').Gpio, 
 	debug = require('debug')('GPIO'),
 	// 67, 68, 69
-  	gpios = {}
+  	gpios = { '67': new Gpio(67, 'out'), '68': new Gpio('68', 'out'),'69' : new Gpio(69, 'out')}
 
 function writeGPIO(gpio_id, onOff) {
-	if(!gpios.hasOwnProperty(gpio_id)) {
-		gpios[gpio_id] = new Gpio(gpio_id, 'out');
+	debug('WriteGPIO', gpio_id, onOff);
+	
+	var id_str = gpio_id.toString();
+	if(!gpios.hasOwnProperty(id_str)) {
+		debug('Creating new GPIO for', gpio_id);
+		gpios.id_str = new Gpio(gpio_id, 'out');
 	}
-	gpios[gpio_id].write(onOff, function(err) {
+	gpios[id_str].write(onOff, function(err) {
 		if(err) {
 			debug("Writing GPIO_ID", err);
 		}
 		else {
-			gpios[gpio_id].read(function(err, value) {
+			gpios[id_str].read(function(err, value) {
 				if(err) debug("Reading GPIO_ID", err)
 				else debug("GPIO_ID", gpio_id, "is now", (onOff === 0 ? "negative" : "positive"));
 			});
@@ -33,7 +37,7 @@ module.exports = {
 	positive: function(gpio_id) {
 		writeGPIO(gpio_id, 1);
 	},
-	negative: function(index) {
+	negative: function(gpio_id) {
 		writeGPIO(gpio_id, 0);
 	}
 }
