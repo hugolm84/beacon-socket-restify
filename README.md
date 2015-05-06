@@ -3,6 +3,10 @@
 
 This the Client/Server applikation of Presence.
 
+## Start the application
+
+DEBUG=* node index.js
+
 ## token
 curl -ikL -X POST -H "username: username" -H "password: pwd" http://localhost:3000/token
 
