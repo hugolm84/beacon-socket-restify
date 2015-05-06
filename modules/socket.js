@@ -4,17 +4,16 @@ var socketio = require('socket.io')
     , jwt_secret = require.main.require('./modules/jwt_secret')
     , Beacon = require.main.require('./models/beacon')
     , debug = require('debug')('presence:server')
+    , beaconDebug = require('debug')('presence:beacon')
     , clientPositions = {}
-    , gpio = require.main.require('./modules/gpio')
-
 
 function disconnectOne(id) {
     var client = clientPositions[id];
     if(client && client.beacon) {
         Beacon.inc(client.beacon, -1, function(err, changed, beacon) {
-            if(err){ debug("Decrement error", err); return; }
-            if(changed) debug("Performed action", beacon.state)
-            debug("disconnected", id);
+            if(err){ beaconDebug("Decrement error", err); return; }
+            if(changed) beaconDebug("Performed action", beacon.state)
+            beaconDebug("disconnected", id);
         });
         delete clientPositions[id];
     }
@@ -41,7 +40,7 @@ var self = module.exports = {
 
         // Reset all beacons if we exited in a bad way
         Beacon.update({}, { num_attached: 0 }, { multi: true }, function (err, raw) {
-            if (err) debug(err);
+            if (err) beaconDebug(err);
         });
 
         io.on('connection', function(socket){
@@ -92,8 +91,10 @@ var self = module.exports = {
                     } 
 
                     Beacon.inc(id, 1, function(err, changed, beacon) {
-                        if(err){ debug("Increment error", err); return; }
-                        if(changed) debug("Perform action", beacon)
+                        if(err){ beaconDebug("Increment error", err); return; }
+                        if(changed) { 
+                            beaconDebug("Performed action", beacon);
+                        }
                     });                   
 
                     debug("Room", id, "now have",  Object.keys(io.sockets.adapter.rooms[id]).length, "connected devices")
@@ -104,9 +105,8 @@ var self = module.exports = {
                     socket.room = id;
                     clientPositions[socket.id] = {beacon: id, distance: distance};
                     io.emit('position', socket.id, clientPositions[socket.id]);
-                });
 
-                gpio.setOnOrOff(0);
+                });
             });
         });
         return io;
