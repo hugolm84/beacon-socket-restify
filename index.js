@@ -8,6 +8,6 @@ server.get('/v1/connect',function(req, res, next) {
 	serve_static.html(__dirname + '/index.html', res, next);
 })
 
-server.listen(3000, function () {
+server.listen(3001, function () {
     debug('socket.io server listening at %s', server.url);
 });
