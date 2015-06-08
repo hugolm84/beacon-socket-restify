@@ -4,7 +4,6 @@ var mongoose = require('mongoose'),
     gpio = require.main.require('./modules/gpio'),
     cleanup = require.main.require('./modules/cleanup').Cleanup(onExit);
 
-
 function onExit() {
     gpio.freeAll(function(count) {
         debug("Freed", count);
@@ -31,12 +30,11 @@ var Beacon = new Schema({
     }
 });
 
-
 Beacon.methods.doIfAuto = function(cb) {
     var that = this;
     if(this.is_auto) {
         var prevState = this.state;
-        if(this.num_attached <= this.do_if_less_then.number) {
+        if(this.num_attached < this.do_if_less_then.number) {
             this.state = this.do_if_less_then.action;
         }
         else if(this.num_attached >= this.do_if_more_then.number) {
@@ -63,3 +61,4 @@ Beacon.statics.inc = function(id, count, cb) {
 }
 
 module.exports = mongoose.model('Beacon', Beacon);
+
