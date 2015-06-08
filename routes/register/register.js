@@ -1,5 +1,7 @@
 var passport = require('passport')
-	Account = require.main.require('./models/account')
+	, jwt_secret = require.main.require('./modules/jwt_secret')
+    , jwt = require('jsonwebtoken')
+	, Account = require.main.require('./models/account')
 
 function registerUser(req, res, cb) {
 	Account.register(new Account( {username: req.body.username, password: req.body.password, is_admin: req.body.is_admin} ), req.body.password, function(err, account) {
@@ -8,10 +10,11 @@ function registerUser(req, res, cb) {
 				return cb();
 			}
 
-			passport.authenticate('local')(req, res, function () {
-				res.json({code : 200, msg: "Registered new user"});
+			//passport.authenticate('local')(req, res, function () {
+				var token = jwt.sign({username: account.username, is_admin: account.is_admin}, jwt_secret); // {expiresInMinutes: 600}
+				res.json({code : 200, msg: "Registered new user", token: token});
 				return cb();
-			});
+			//});
 		});
 }
 module.exports = {
@@ -45,3 +48,4 @@ module.exports = {
 	}
   }
 };
+
