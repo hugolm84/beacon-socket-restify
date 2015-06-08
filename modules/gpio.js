@@ -1,7 +1,7 @@
-var Gpio = require('onoff').Gpio, 
-	debug = require('debug')('GPIO'),
+var Gpio = require('onoff').Gpio
+	, debug = require('debug')('GPIO')
 	// 67, 68, 69
-  	gpios = { '67': new Gpio(67, 'out'), '68': new Gpio('68', 'out'),'69' : new Gpio(69, 'out')}
+  	,gpios = { '67': new Gpio(67, 'out'), '68': new Gpio('68', 'out'),'69' : new Gpio(69, 'out')}
 
 function writeGPIO(gpio_id, onOff) {
 	debug('WriteGPIO', gpio_id, onOff);
