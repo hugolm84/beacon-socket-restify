@@ -7,12 +7,15 @@ var socketio = require('socket.io')
     , beaconDebug = require('debug')('presence:beacon')
     , clientPositions = {}
 
-function disconnectOne(id) {
+function disconnectOne(id, io) {
     var client = clientPositions[id];
     if(client && client.beacon) {
         Beacon.inc(client.beacon, -1, function(err, changed, beacon) {
             if(err){ beaconDebug("Decrement error", err); return; }
-            if(changed) beaconDebug("Performed action", beacon.state)
+            if(changed) { 
+		beaconDebug("Performed action", beacon.state)
+                io.emit('state_changed', beacon, beacon.state);
+	    }
             beaconDebug("disconnected", id);
         });
         delete clientPositions[id];
@@ -55,16 +58,48 @@ var self = module.exports = {
             socket.on('disconnect', function(){
                 debug('user disconnected', socket.id);
                 // Make sure that disconnecting user leaves all joined rooms
-                disconnectOne(socket.id);
+                disconnectOne(socket.id, io);
                 socket.leaveAll();
                 io.emit('disconnect', socket.id);
             });
 
             socket.on('message', function(msg){
-                console.log('message: ' + msg);
+                debug('message: ' + msg);
                 io.emit('message', msg);
             });
 
+            socket.on('leave', function(uuid) {
+                debug('leave', uuid);
+
+                var prevRoom = socket.room;
+                socket.leave(prevRoom, function(err) {
+                    if(err) {
+                        debug("Leaving previous room resulted in error:", err);
+                        return;
+                    } 
+                    disconnectOne(socket.id, io);
+                    debug("Socket ID", socket.id, "left room", socket.room);
+                });
+
+                io.emit('leave', uuid);
+            });
+
+            socket.on('get_states', function() {
+                debug(socket.id, "asked for states");
+                Beacon.find({}, function(err, beacons) {
+                    if (!err){ 
+			debug('Sendning', beacons);
+                        io.emit('get_states', beacons);
+                    } else { 
+                        debug("Failed to retreive all beacons", err);
+                    }
+                });
+            });
+
+            socket.on('state_changed', function(beacon, state){
+                debug('state_changed: ' + beacon, state);
+                io.emit('state_changed', beacon, state);
+            });
             /**
              * Devices send their distance (pre calculated in m) to its closest beacon id
              * then joins the beacon "room".
@@ -79,7 +114,7 @@ var self = module.exports = {
                             debug("Leaving previous room resulted in error:", err);
                             return;
                         } 
-                        disconnectOne(socket.id);
+                        disconnectOne(socket.id, io);
                         debug("Socket ID", socket.id, "left room", socket.room);
                     });
                 }
@@ -91,9 +126,14 @@ var self = module.exports = {
                     } 
 
                     Beacon.inc(id, 1, function(err, changed, beacon) {
-                        if(err){ beaconDebug("Increment error", err); return; }
+                        if(err){ debug("Increment error", err); return; }
                         if(changed) { 
-                            beaconDebug("Performed action", beacon);
+                            debug("Performed action", changed);
+                            io.emit('state_changed', beacon, changed);
+                        }
+                        else {
+                            debug("State did not change", changed);
+                            io.emit('state_changed', beacon, changed);
                         }
                     });                   
 
